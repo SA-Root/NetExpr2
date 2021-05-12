@@ -1,14 +1,20 @@
 package com.vinewood;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class RouterInstance {
     private HashMap<String, RouterInfo> RoutingTable;
     private Thread TUpdateRoutingTable;
     private ConcurrentLinkedQueue<RouterExchange> QueueExchangeReceived;
     private Thread TUDPListener;
+    private int LocalPort;
+    private String LocalID;
+    private SysCfg Config;
 
     private void UpdateRoutingTableThread() {
         while (!Thread.currentThread().isInterrupted()) {
@@ -26,6 +32,8 @@ public class RouterInstance {
     public RouterInstance(String id, int udpport, String ifpath) {
         RoutingTable = new HashMap<String, RouterInfo>();
         QueueExchangeReceived = new ConcurrentLinkedQueue<RouterExchange>();
+        LocalID = id;
+        LocalPort = udpport;
         LoadConfig(ifpath);
     }
 
@@ -89,7 +97,14 @@ public class RouterInstance {
     }
 
     private void LoadConfig(String path) {
-
+        File cur = new File(".");
+        try {
+            File cfg = new File(cur.getCanonicalPath() + "/configs/syscfg.json");
+            ObjectMapper mapper = new ObjectMapper();
+            Config = mapper.readValue(cfg, SysCfg.class);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void InitializeNode() {
