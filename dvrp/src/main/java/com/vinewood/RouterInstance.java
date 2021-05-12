@@ -6,7 +6,7 @@ public class RouterInstance {
     private HashMap<String, RouterInfo> RoutingTable;
     private Thread TListener;
 
-    private void UDPListener() {
+    private void UDPListenerThread() {
 
     }
 
@@ -19,7 +19,7 @@ public class RouterInstance {
         TListener = new Thread(new Runnable() {
             @Override
             public void run() {
-                UDPListener();
+                UDPListenerThread();
             }
         });
         TListener.start();
