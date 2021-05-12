@@ -12,11 +12,11 @@ public class RouterInstance {
 
     private void UpdateRoutingTableThread() {
         while (!Thread.currentThread().isInterrupted()) {
-            if (!QueueExchangeReceived.isEmpty()) {
+            while (!QueueExchangeReceived.isEmpty()) {
 
             }
             try {
-                TUpdateRoutingTable.wait();
+                TUpdateRoutingTable.wait(100);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
