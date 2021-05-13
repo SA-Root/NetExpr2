@@ -19,7 +19,7 @@ public class DVRP {
             if (port <= 0 || port >= 65535) {
                 System.out.println("[ERROR]Invalid UDPPort.");
             } else {
-                RouterInstance ri = new RouterInstance(args[0], port, args[2]);
+                var ri = new RouterInstance(args[0], port, args[2]);
                 ri.Launch();
             }
         }

@@ -49,15 +49,15 @@ public class RouterInstance {
         LocalPort = udpport;
         SentSeqNumber = 1;
         ReceivedSeqNumber = 1;
-        File cur = new File(".");
+        var cur = new File(".");
         try {
             pwd = cur.getCanonicalPath();
         } catch (Exception e) {
             e.printStackTrace();
         }
-        Date now = new Date();
-        SimpleDateFormat ft = new SimpleDateFormat("yyyy-MM-dd hh-mm-ss a");
-        File logPath = new File(pwd + "/logs");
+        var now = new Date();
+        var ft = new SimpleDateFormat("yyyy-MM-dd hh-mm-ss a");
+        var logPath = new File(pwd + "/logs");
         if (!logPath.exists()) {
             logPath.mkdir();
         }
@@ -99,9 +99,9 @@ public class RouterInstance {
         TUDPListener.start();
         InitializeNode();
         while (true) {
-            Byte command = ' ';
+            var command = ' ';
             try {
-                command = (byte) System.in.read();
+                command = (char) System.in.read();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -158,23 +158,23 @@ public class RouterInstance {
      */
     private void LoadConfig(String path) {
         try {
-            File cfg = new File(pwd + "/configs/syscfg.json");
-            ObjectMapper mapper = new ObjectMapper();
+            var cfg = new File(pwd + "/configs/syscfg.json");
+            var mapper = new ObjectMapper();
             Config = mapper.readValue(cfg, SysCfg.class);
         } catch (Exception e) {
             e.printStackTrace();
         }
-        File init = new File(pwd + "/" + path);
+        var init = new File(pwd + "/" + path);
         try {
-            BufferedReader br = new BufferedReader(new FileReader(init));
+            var br = new BufferedReader(new FileReader(init));
             while (true) {
-                String line = br.readLine();
+                var line = br.readLine();
                 if (line == null)
                     break;
-                String[] res = line.split(" ");
-                String neighbour = res[0];
-                float dist = Float.parseFloat(res[1]);
-                int port = Integer.parseInt(res[2]);
+                var res = line.split(" ");
+                var neighbour = res[0];
+                var dist = Float.parseFloat(res[1]);
+                var port = Integer.parseInt(res[2]);
                 RoutingTable.put(neighbour, new RoutingInfo(neighbour, dist, neighbour));
                 NeighbourMap.put(neighbour, port);
             }

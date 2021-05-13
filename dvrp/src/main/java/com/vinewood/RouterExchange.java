@@ -21,7 +21,7 @@ public class RouterExchange {
     }
 
     public static ArrayList<RouterExchange> Deserialize(String stream) {
-        ArrayList<RouterExchange> ret = new ArrayList<RouterExchange>();
+        var ret = new ArrayList<RouterExchange>();
         return ret;
     }
 }
