@@ -3,6 +3,9 @@ package com.vinewood;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.SocketException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -24,6 +27,9 @@ public class RouterInstance {
     private String pwd;
     private int SentSeqNumber;
     private int ReceivedSeqNumber;
+    private DatagramSocket UDPSocket;
+    private boolean isRunning;
+    private Object SyncIsRunning;
 
     /**
      * Using DV algo to update routing table
@@ -31,7 +37,7 @@ public class RouterInstance {
     private void UpdateRoutingTableThread() {
         while (!TUpdateRoutingTable.isInterrupted()) {
             while (!QueueExchangeReceived.isEmpty()) {
-
+                // TODO: impl
             }
             try {
                 Thread.sleep(250);
@@ -49,6 +55,14 @@ public class RouterInstance {
         LocalPort = udpport;
         SentSeqNumber = 1;
         ReceivedSeqNumber = 1;
+        SyncIsRunning = new Object();
+        isRunning = true;
+        try {
+            UDPSocket = new DatagramSocket(LocalPort);
+        } catch (SocketException e) {
+            e.printStackTrace();
+            return;
+        }
         var cur = new File(".");
         try {
             pwd = cur.getCanonicalPath();
@@ -74,8 +88,32 @@ public class RouterInstance {
      * Listen to UDP port and push to queue
      */
     private void UDPListenerThread() {
+        try {
+            UDPSocket.setSoTimeout(1000);
+        } catch (SocketException e) {
+            System.out.println("[ERROR]Could not set socket timeout.");
+            return;
+        }
         while (!TUDPListener.isInterrupted()) {
+            synchronized (SyncIsRunning) {
+                // receive and discard
+                if (!isRunning) {
+                    var buffer = new byte[100];
+                    var ReceivedPacket = new DatagramPacket(buffer, buffer.length);
+                    try {
+                        UDPSocket.receive(ReceivedPacket);
+                    } catch (Exception e) {
 
+                    }
+                } else {
+                    // TODO: impl
+                }
+            }
+            try {
+                Thread.sleep(250);
+            } catch (InterruptedException e) {
+                TUDPListener.interrupt();
+            }
         }
     }
 
@@ -125,35 +163,44 @@ public class RouterInstance {
      * Pause the router
      */
     public void Pause() {
-
+        synchronized (SyncIsRunning) {
+            isRunning = false;
+        }
+        // TODO: impl
     }
 
     /**
      * Resume the router
      */
     public void Resume() {
-
+        synchronized (SyncIsRunning) {
+            isRunning = true;
+        }
+        // TODO: impl
     }
 
     /**
      * Shutdown the router
      */
     public void Terminate() {
+        UDPSocket.close();
         TUpdateRoutingTable.interrupt();
         TUDPListener.interrupt();
     }
 
     /**
      * Print after sending exchg info
+     * 
      * @param isSent
      * @param lre
      */
     private void PrintRoutingInfo(Boolean isSent, List<RouterExchange> lre) {
-
+        // TODO: impl
     }
 
     /**
      * Load syscfg and init cfg
+     * 
      * @param path
      */
     private void LoadConfig(String path) {
@@ -188,6 +235,6 @@ public class RouterInstance {
      * First flooding
      */
     private void InitializeNode() {
-
+        // TODO: impl
     }
 }
