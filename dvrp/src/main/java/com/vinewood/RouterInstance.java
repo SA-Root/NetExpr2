@@ -25,6 +25,9 @@ public class RouterInstance {
     private int SentSeqNumber;
     private int ReceivedSeqNumber;
 
+    /**
+     * Using DV algo to update routing table
+     */
     private void UpdateRoutingTableThread() {
         while (!TUpdateRoutingTable.isInterrupted()) {
             while (!QueueExchangeReceived.isEmpty()) {
@@ -67,12 +70,18 @@ public class RouterInstance {
         LoadConfig(ifpath);
     }
 
+    /**
+     * Listen to UDP port and push to queue
+     */
     private void UDPListenerThread() {
         while (!TUDPListener.isInterrupted()) {
 
         }
     }
 
+    /**
+     * Activate the router and response to keyboard input
+     */
     public void Launch() {
         TUpdateRoutingTable = new Thread(new Runnable() {
             @Override
@@ -89,7 +98,6 @@ public class RouterInstance {
         });
         TUDPListener.start();
         InitializeNode();
-        // Scanner Input = new Scanner(System.in);
         while (true) {
             Byte command = ' ';
             try {
@@ -99,7 +107,6 @@ public class RouterInstance {
             }
             // quit
             if (command == 'K' || command == 'k') {
-                // Input.close();
                 Terminate();
                 break;
             }
@@ -114,23 +121,41 @@ public class RouterInstance {
         }
     }
 
+    /**
+     * Pause the router
+     */
     public void Pause() {
 
     }
 
+    /**
+     * Resume the router
+     */
     public void Resume() {
 
     }
 
+    /**
+     * Shutdown the router
+     */
     public void Terminate() {
         TUpdateRoutingTable.interrupt();
         TUDPListener.interrupt();
     }
 
+    /**
+     * Print after sending exchg info
+     * @param isSent
+     * @param lre
+     */
     private void PrintRoutingInfo(Boolean isSent, List<RouterExchange> lre) {
 
     }
 
+    /**
+     * Load syscfg and init cfg
+     * @param path
+     */
     private void LoadConfig(String path) {
         try {
             File cfg = new File(pwd + "/configs/syscfg.json");
@@ -159,6 +184,9 @@ public class RouterInstance {
         }
     }
 
+    /**
+     * First flooding
+     */
     private void InitializeNode() {
 
     }

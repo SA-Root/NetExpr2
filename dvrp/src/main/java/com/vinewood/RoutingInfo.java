@@ -1,5 +1,8 @@
 package com.vinewood;
 
+/**
+ * Routing table elements
+ */
 public class RoutingInfo {
     public String DestNode;
     public float Distance;

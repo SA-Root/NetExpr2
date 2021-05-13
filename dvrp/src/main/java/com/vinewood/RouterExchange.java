@@ -2,6 +2,9 @@ package com.vinewood;
 
 import java.util.ArrayList;
 
+/**
+ * For updating routing table
+ */
 public class RouterExchange {
     public String SrcNode;
     public String DestNode;
