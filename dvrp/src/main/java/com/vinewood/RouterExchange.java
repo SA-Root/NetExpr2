@@ -1,5 +1,7 @@
 package com.vinewood;
 
+import java.util.ArrayList;
+
 public class RouterExchange {
     public String SrcNode;
     public String DestNode;
@@ -11,11 +13,12 @@ public class RouterExchange {
         Distance = dist;
     }
 
-    public static String Serialize(RouterExchange re) {
+    public static String Serialize(ArrayList<RouterExchange> re) {
         return null;
     }
 
-    public static RouterExchange Deserialize(String stream) {
-        return null;
+    public static ArrayList<RouterExchange> Deserialize(String stream) {
+        ArrayList<RouterExchange> ret = new ArrayList<RouterExchange>();
+        return ret;
     }
 }

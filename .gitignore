@@ -1,4 +1,4 @@
 .vscode/*
 dvrp/target/*
-log/*
+logs/*
 configs/*
