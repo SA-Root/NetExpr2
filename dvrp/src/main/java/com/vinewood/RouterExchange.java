@@ -17,11 +17,13 @@ public class RouterExchange {
     }
 
     public static String Serialize(ArrayList<RouterExchange> re) {
+        // TODO:
         return null;
     }
 
     public static ArrayList<RouterExchange> Deserialize(String stream) {
         var ret = new ArrayList<RouterExchange>();
+        // TODO:
         return ret;
     }
 }
