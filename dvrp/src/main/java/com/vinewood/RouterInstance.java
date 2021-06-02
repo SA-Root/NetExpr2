@@ -11,6 +11,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +26,8 @@ public class RouterInstance {
 
     private HashMap<String, Boolean> NeighbourAlive;
 
-    private ArrayList<String> checkNode;
+    private HashMap<String,RoutingInfo> RoutingNeighbor;
+    private HashSet<String> checkNode;
 
     private Thread TSendMsg;
     private ConcurrentLinkedQueue<RouterExchange[]> QueueExchangeReceived;
@@ -58,17 +60,15 @@ public class RouterInstance {
             }
             if (!QueueExchangeReceived.isEmpty()) {
                 var getSize = QueueExchangeReceived.size();
+                for (RoutingInfo it : RoutingTable.values()) {
+                    if (!it.DestNode.equals(it.Neighbour))
+                        it.Distance = Config.Unreachable;
+                }
                 while (getSize-- > 0) {
                     RouterExchange[] exchangesNow = QueueExchangeReceived.poll();
 
                     // HashMap<String,RoutingInfo> rtNow=new
                     // HashMap<String,RoutingInfo>(RoutingTable);
-                    for (RoutingInfo it : RoutingTable.values()) {
-                        if (!it.DestNode.equals(it.Neighbour))
-                            it.Distance = Config.Unreachable;
-                    }
-
-
                         for (RouterExchange exchangeNow : exchangesNow) {
                             var destInfo = RoutingTable.get(exchangeNow.DestNode);
                             if(destInfo==null){
@@ -81,12 +81,26 @@ public class RouterInstance {
                                 destInfo.Neighbour = exchangeNow.SrcNode;
                                 destInfo.Distance = exchangeNow.Distance+ RoutingTable.get(exchangeNow.SrcNode).Distance;
                             }
+                            if(RoutingNeighbor.get(exchangeNow.DestNode)!=null){
+                                if(destInfo.Distance>RoutingNeighbor.get(exchangeNow.DestNode).Distance){
+                                    destInfo.Distance=RoutingNeighbor.get(exchangeNow.DestNode).Distance;
+                                    destInfo.Neighbour=exchangeNow.DestNode;
+                                }
+                            }
+                            if(NeighbourAlive.get(exchangeNow.DestNode)==null||!NeighbourAlive.get(exchangeNow.DestNode)){
+                                destInfo.Distance=Config.Unreachable;
+                                destInfo.Neighbour=exchangeNow.DestNode;
+                            }
                         }
                         RoutingTable.put(LocalID, new RoutingInfo(LocalID, 0, LocalID));
                         
                     }
                    sendMsgOnce();
                 
+            }
+
+            else{
+                sendMsgOnce();
             }
         }
         QueueExchangeReceived.clear();
@@ -114,13 +128,14 @@ public class RouterInstance {
             try {
 
                 UDPSocket.send(outPack);
-                SentSeqNumber++;
+                
             } catch (Exception e) {
                 System.out.println("[ERROR]Could not send RoutingTable.");
             }
 
         }
         PrintRoutingInfo();
+        SentSeqNumber++;
     }
 
     public RouterInstance(String id, int udpport, String ifpath) {
@@ -133,8 +148,9 @@ public class RouterInstance {
         ReceivedSeqNumber = 1;
         SyncIsRunning = new Object();
         configPath = ifpath;
-        checkNode = new ArrayList<String>();
+        checkNode = new HashSet<String>();
         NeighbourAlive = new HashMap<String, Boolean>();
+        RoutingNeighbor=new HashMap<String,RoutingInfo>();
         SendMsgRunnable = new Runnable() {
             @Override
             public void run() {
@@ -167,7 +183,7 @@ public class RouterInstance {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        InitializeNode();
+
 
     }
 
@@ -195,6 +211,7 @@ public class RouterInstance {
                 RouterExchange[] exchanges = RouterExchange.Deserialize(new String(buffer));
                 QueueExchangeReceived.add(exchanges);
                 ReceivedSeqNumber++;
+
                 checkNode.add(exchanges[0].SrcNode);
                 NeighbourAlive.put(exchanges[0].SrcNode, true);
                 if (System.currentTimeMillis() - startTime > Config.MaxValidTime) {
@@ -221,8 +238,8 @@ public class RouterInstance {
      * Activate the router and response to keyboard input
      */
     public void Launch() {
-        TSendMsg = new Thread(SendMsgRunnable);
-        TSendMsg.start();
+        System.out.println("[INFO]Router is running.");
+        InitializeNode();
         TUDPListener = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -230,8 +247,11 @@ public class RouterInstance {
             }
         });
         TUDPListener.start();
-        InitializeNode();
-        System.out.println("[INFO]Router is running.");
+
+        
+        TSendMsg = new Thread(SendMsgRunnable);
+        TSendMsg.start();
+        
         while (true) {
             var command = ' ';
             try {
@@ -338,6 +358,7 @@ public class RouterInstance {
                 RoutingTable.put(neighbour, new RoutingInfo(neighbour, dist, neighbour));
                 NeighbourMap.put(neighbour, port);
                 NeighbourAlive.put(neighbour, true);
+                RoutingNeighbor.put(neighbour,new RoutingInfo(neighbour, dist, neighbour));
             }
             RoutingTable.put(LocalID, new RoutingInfo(LocalID, 0, LocalID));
             br.close();
