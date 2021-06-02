@@ -58,20 +58,16 @@ public class RouterInstance {
             }
             if (!QueueExchangeReceived.isEmpty()) {
                 var getSize = QueueExchangeReceived.size();
-                if (!isRunning) {
-                    while (getSize-- > 0) {
-                        QueueExchangeReceived.poll();
-                    }
-                } else {
-                    while (getSize-- > 0) {
-                        RouterExchange[] exchangesNow = QueueExchangeReceived.poll();
+                while (getSize-- > 0) {
+                    RouterExchange[] exchangesNow = QueueExchangeReceived.poll();
 
-                        // HashMap<String,RoutingInfo> rtNow=new
-                        // HashMap<String,RoutingInfo>(RoutingTable);
-                        for (RoutingInfo it : RoutingTable.values()) {
-                            if (!it.DestNode.equals(it.Neighbour))
-                                it.Distance = Config.Unreachable;
-                        }
+                    // HashMap<String,RoutingInfo> rtNow=new
+                    // HashMap<String,RoutingInfo>(RoutingTable);
+                    for (RoutingInfo it : RoutingTable.values()) {
+                        if (!it.DestNode.equals(it.Neighbour))
+                            it.Distance = Config.Unreachable;
+                    }
+
 
                         for (RouterExchange exchangeNow : exchangesNow) {
                             var destInfo = RoutingTable.get(exchangeNow.DestNode);
@@ -90,12 +86,13 @@ public class RouterInstance {
                         
                     }
                    sendMsgOnce();
-                }
+                
             }
         }
         QueueExchangeReceived.clear();
     }
-    public void sendMsgOnce(){
+
+    public void sendMsgOnce() {
         var exchanges = new ArrayList<RouterExchange>();
         for (RoutingInfo it : RoutingTable.values()) {
             exchanges.add(new RouterExchange(LocalID, it.DestNode, it.Distance));
@@ -125,6 +122,7 @@ public class RouterInstance {
         }
         PrintRoutingInfo();
     }
+
     public RouterInstance(String id, int udpport, String ifpath) {
         RoutingTable = new HashMap<String, RoutingInfo>();
         NeighbourMap = new HashMap<String, Integer>();
@@ -234,7 +232,6 @@ public class RouterInstance {
         TUDPListener.start();
         InitializeNode();
         System.out.println("[INFO]Router is running.");
-        sendMsgOnce();
         while (true) {
             var command = ' ';
             try {
@@ -357,6 +354,6 @@ public class RouterInstance {
         NeighbourAlive.clear();
         NeighbourMap.clear();
         LoadConfig(configPath);
-        // TODO: impl
+        sendMsgOnce();
     }
 }
