@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+
 //import jdk.internal.joptsimple.util.InetAddressConverter;
 
 public class RouterInstance {
@@ -74,16 +75,21 @@ public class RouterInstance {
 
                         for (RouterExchange exchangeNow : exchangesNow) {
                             var destInfo = RoutingTable.get(exchangeNow.DestNode);
+                            if(destInfo==null){
+                                RoutingTable.put(exchangeNow.DestNode, new RoutingInfo(exchangeNow.DestNode, exchangeNow.Distance, exchangeNow.SrcNode));
+                                continue;
+                            }
+                            
                             if (destInfo.Distance > RoutingTable.get(exchangeNow.SrcNode).Distance
                                     + exchangeNow.Distance) {
                                 destInfo.Neighbour = exchangeNow.SrcNode;
-                                destInfo.Distance = exchangeNow.Distance;
+                                destInfo.Distance = exchangeNow.Distance+ RoutingTable.get(exchangeNow.SrcNode).Distance;
                             }
                         }
+                        RoutingTable.put(LocalID, new RoutingInfo(LocalID, 0, LocalID));
                         
-                        sendMsgOnce();
                     }
-                   
+                   sendMsgOnce();
                 }
             }
         }
@@ -181,7 +187,13 @@ public class RouterInstance {
                 continue;
             }
             if (isRunning) {
-
+               // System.out.println(new String(buffer));
+                for(int it=0;it<buffer.length;it++){
+                    if(buffer[it]==']'){
+                        buffer[it+1]=0;
+                        break;
+                    }
+                }
                 RouterExchange[] exchanges = RouterExchange.Deserialize(new String(buffer));
                 QueueExchangeReceived.add(exchanges);
                 ReceivedSeqNumber++;
@@ -288,7 +300,7 @@ public class RouterInstance {
      */
     private void PrintRoutingInfo() {
 
-        System.out.println("##Sent. Source Node = " + LocalID + "Sequence Number = " + SentSeqNumber);
+        System.out.println("##Sent. Source Node = " + LocalID + " Sequence Number = " + SentSeqNumber);
         for (RoutingInfo it : RoutingTable.values()) {
             var printMsg = new String();
             printMsg += "DestNode = ";
@@ -299,6 +311,7 @@ public class RouterInstance {
             printMsg += it.Neighbour;
             System.out.println(printMsg);
         }
+        System.out.println("");
     }
 
     /**
@@ -329,6 +342,7 @@ public class RouterInstance {
                 NeighbourMap.put(neighbour, port);
                 NeighbourAlive.put(neighbour, true);
             }
+            RoutingTable.put(LocalID, new RoutingInfo(LocalID, 0, LocalID));
             br.close();
         } catch (Exception e) {
             e.printStackTrace();
