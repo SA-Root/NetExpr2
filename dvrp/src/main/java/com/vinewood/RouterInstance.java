@@ -18,14 +18,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 //import jdk.internal.joptsimple.util.InetAddressConverter;
 
 public class RouterInstance {
+    private Runnable SendMsgRunnable;
     private HashMap<String, Integer> NeighbourMap;
     private HashMap<String, RoutingInfo> RoutingTable;
 
-    private HashMap<String,Boolean> NeighbourAlive;
+    private HashMap<String, Boolean> NeighbourAlive;
 
-    ArrayList<String> checkNode;
-    
-    private Thread TUpdateRoutingTable;
+    private ArrayList<String> checkNode;
+
+    private Thread TSendMsg;
     private ConcurrentLinkedQueue<RouterExchange[]> QueueExchangeReceived;
     private Thread TUDPListener;
     private int LocalPort;
@@ -46,72 +47,73 @@ public class RouterInstance {
      */
 
     private void sendMsgThread() {
-        while (!TUpdateRoutingTable.isInterrupted()) {
-
+        while (!TSendMsg.isInterrupted()) {
             try {
                 Thread.sleep(Config.Frequency);
-                
+
             } catch (InterruptedException e) {
-                TUpdateRoutingTable.interrupt();
+                TSendMsg.interrupt();
+                continue;
             }
-            int getSize=0;
-            if(!QueueExchangeReceived.isEmpty()){
-                getSize=QueueExchangeReceived.size();
+            if (!QueueExchangeReceived.isEmpty()) {
+                var getSize = QueueExchangeReceived.size();
+                if (!isRunning) {
+                    while (getSize-- > 0) {
+                        QueueExchangeReceived.poll();
+                    }
+                } else {
+                    while (getSize-- > 0) {
+                        RouterExchange[] exchangesNow = QueueExchangeReceived.poll();
+
+                        // HashMap<String,RoutingInfo> rtNow=new
+                        // HashMap<String,RoutingInfo>(RoutingTable);
+                        for (RoutingInfo it : RoutingTable.values()) {
+                            if (!it.DestNode.equals(it.Neighbour))
+                                it.Distance = Config.Unreachable;
+                        }
+
+                        for (RouterExchange exchangeNow : exchangesNow) {
+                            var destInfo = RoutingTable.get(exchangeNow.DestNode);
+                            if (destInfo.Distance > RoutingTable.get(exchangeNow.SrcNode).Distance
+                                    + exchangeNow.Distance) {
+                                destInfo.Neighbour = exchangeNow.SrcNode;
+                                destInfo.Distance = exchangeNow.Distance;
+                            }
+                        }
+
+                    }
+                    var exchanges = new ArrayList<RouterExchange>();
+                    for (RoutingInfo it : RoutingTable.values()) {
+                        exchanges.add(new RouterExchange(LocalID, it.DestNode, it.Distance));
+                    }
+                    byte[] sendMsg = RouterExchange.Serialize(exchanges).getBytes();
+
+                    for (String itNow : NeighbourMap.keySet()) {
+                        Integer it = NeighbourMap.get(itNow);
+                        if (!NeighbourAlive.get(itNow)) {
+                            continue;
+                        }
+                        DatagramPacket outPack = null;
+                        try {
+                            outPack = new DatagramPacket(sendMsg, sendMsg.length, InetAddress.getLocalHost(), it);
+                        } catch (Exception e) {
+
+                        }
+
+                        try {
+
+                            UDPSocket.send(outPack);
+                            SentSeqNumber++;
+                        } catch (Exception e) {
+                            System.out.println("[ERROR]Could not send RoutingTable.");
+                        }
+
+                    }
+                    PrintRoutingInfo();
+                }
             }
-
-            while (getSize-->0) {
-                if(!isRunning){
-                    QueueExchangeReceived.poll();
-                    continue;
-                }
-                RouterExchange[] exchangesNow=QueueExchangeReceived.poll();
-                
-                //HashMap<String,RoutingInfo> rtNow=new HashMap<String,RoutingInfo>(RoutingTable);
-                for(RoutingInfo it:RoutingTable.values()){
-                    if(!it.DestNode.equals(it.Neighbour))
-                        it.Distance=Config.Unreachable;
-                }
-                
-
-                for(RouterExchange exchangeNow:exchangesNow){
-                    if(RoutingTable.get(exchangeNow.DestNode).Distance>RoutingTable.get(exchangeNow.SrcNode).Distance+exchangeNow.Distance){
-                        RoutingTable.get(exchangeNow.DestNode).Neighbour=exchangeNow.SrcNode;
-                        RoutingTable.get(exchangeNow.DestNode).Distance=exchangeNow.Distance;
-                    }
-                }
-
         }
-        if(isRunning){
-            var exchanges=new ArrayList<RouterExchange>();
-                for(RoutingInfo it:RoutingTable.values()){
-                    exchanges.add(new RouterExchange(LocalID, it.DestNode, it.Distance));
-                }
-                byte[] sendMsg=RouterExchange.Serialize(exchanges).getBytes();
-                
-                for(String itNow: NeighbourMap.keySet()){
-                    Integer it=NeighbourMap.get(itNow);
-                    if(!NeighbourAlive.get(itNow)){
-                        continue;
-                    }
-                    DatagramPacket outPack=null;
-                    try {
-                        outPack= new DatagramPacket(sendMsg, sendMsg.length,InetAddress.getLocalHost(),it);
-                    } catch (Exception e) {
-                         
-                    }
-                    
-                    try {
-
-                        UDPSocket.send(outPack);
-                        SentSeqNumber++;
-                    } catch (Exception e) {
-                        System.out.println("[ERROR]Could not send RoutingTable.");
-                    }
-                    
-                }
-                PrintRoutingInfo();
-        }
-        }
+        QueueExchangeReceived.clear();
     }
 
     public RouterInstance(String id, int udpport, String ifpath) {
@@ -123,11 +125,17 @@ public class RouterInstance {
         SentSeqNumber = 1;
         ReceivedSeqNumber = 1;
         SyncIsRunning = new Object();
-        configPath=ifpath;
-        checkNode=new ArrayList<String>();
-        NeighbourAlive=new HashMap<String,Boolean>();
-        isRunning = true; 
-        startTime=0;
+        configPath = ifpath;
+        checkNode = new ArrayList<String>();
+        NeighbourAlive = new HashMap<String, Boolean>();
+        SendMsgRunnable = new Runnable() {
+            @Override
+            public void run() {
+                sendMsgThread();
+            }
+        };
+        isRunning = true;
+        startTime = 0;
         try {
             UDPSocket = new DatagramSocket(LocalPort);
         } catch (SocketException e) {
@@ -153,63 +161,46 @@ public class RouterInstance {
             e.printStackTrace();
         }
         InitializeNode();
-        
+
     }
 
     /**
      * Listen to UDP port and push to queue
      */
     private void UDPListenerThread() {
-       startTime=System.currentTimeMillis();
+        startTime = System.currentTimeMillis();
         while (!TUDPListener.isInterrupted()) {
-            synchronized (SyncIsRunning) {
-                // receive and discard
-                if (!isRunning) {
-                    var buffer = new byte[4096];
-                    var ReceivedPacket = new DatagramPacket(buffer, buffer.length);
-                    try {
-                        UDPSocket.receive(ReceivedPacket);
-                    } catch (Exception e) {
+            var buffer = new byte[4096];
+            var ReceivedPacket = new DatagramPacket(buffer, buffer.length);
+            try {
+                UDPSocket.receive(ReceivedPacket);
+            } catch (Exception e) {
+                continue;
+            }
+            if (isRunning) {
 
-                    }
-                } else {
-                   
-                    var buffer = new byte[4096];
-                    var ReceivedPacket = new DatagramPacket(buffer, buffer.length);
-                    try {
-                        UDPSocket.receive(ReceivedPacket);
-                        
-                    } catch (Exception e) {
-
-                    }
-                    RouterExchange[] exchanges=RouterExchange.Deserialize(new String(buffer));
-                    QueueExchangeReceived.add(exchanges);
-                    ReceivedSeqNumber++;
-                    checkNode.add(exchanges[0].SrcNode);
-                    NeighbourAlive.put(exchanges[0].SrcNode,true);
-                }
-                if(System.currentTimeMillis()-startTime>Config.MaxValidTime){
-                    for(String it:RoutingTable.keySet()){
-                        int flag=0;
-                        for(String itn:checkNode){
-                            if(itn.equals(it)){
-                                flag=1;
+                RouterExchange[] exchanges = RouterExchange.Deserialize(new String(buffer));
+                QueueExchangeReceived.add(exchanges);
+                ReceivedSeqNumber++;
+                checkNode.add(exchanges[0].SrcNode);
+                NeighbourAlive.put(exchanges[0].SrcNode, true);
+                if (System.currentTimeMillis() - startTime > Config.MaxValidTime) {
+                    for (String it : RoutingTable.keySet()) {
+                        int flag = 0;
+                        for (String itn : checkNode) {
+                            if (itn.equals(it)) {
+                                flag = 1;
                                 break;
                             }
                         }
-                        if(flag==0){
-                            NeighbourAlive.put(it,false);
+                        if (flag == 0) {
+                            NeighbourAlive.put(it, false);
                         }
                     }
-                    startTime=System.currentTimeMillis();
+                    startTime = System.currentTimeMillis();
                     checkNode.clear();
                 }
             }
-            // try {
-            //     Thread.sleep(250);
-            // } catch (InterruptedException e) {
-            //     TUDPListener.interrupt();
-            // }
         }
     }
 
@@ -217,13 +208,8 @@ public class RouterInstance {
      * Activate the router and response to keyboard input
      */
     public void Launch() {
-        TUpdateRoutingTable = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                sendMsgThread();
-            }
-        });
-        TUpdateRoutingTable.start();
+        TSendMsg = new Thread(SendMsgRunnable);
+        TSendMsg.start();
         TUDPListener = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -232,6 +218,7 @@ public class RouterInstance {
         });
         TUDPListener.start();
         InitializeNode();
+        System.out.println("[INFO]Router is running.");
         while (true) {
             var command = ' ';
             try {
@@ -262,7 +249,8 @@ public class RouterInstance {
         synchronized (SyncIsRunning) {
             isRunning = false;
         }
-        
+        TSendMsg.interrupt();
+        System.out.println("[INFO]Router is paused.");
     }
 
     /**
@@ -273,6 +261,9 @@ public class RouterInstance {
             isRunning = true;
         }
         InitializeNode();
+        TSendMsg = new Thread(SendMsgRunnable);
+        TSendMsg.start();
+        System.out.println("[INFO]Router has resumed.");
     }
 
     /**
@@ -280,8 +271,9 @@ public class RouterInstance {
      */
     public void Terminate() {
         UDPSocket.close();
-        TUpdateRoutingTable.interrupt();
+        TSendMsg.interrupt();
         TUDPListener.interrupt();
+        System.out.println("[INFO]Router is terminated.");
     }
 
     /**
@@ -291,18 +283,18 @@ public class RouterInstance {
      * @param lre
      */
     private void PrintRoutingInfo() {
-        
-        System.out.println("##Sent. Source Node = "+LocalID+"Sequence Number = "+SentSeqNumber);
-        for(RoutingInfo it:RoutingTable.values()){
-            var printMsg=new String();
-            printMsg+="DestNode = ";
-            printMsg+=it.DestNode;
-            printMsg+="; Distance = ";
-            printMsg+=it.Distance;  
-            printMsg+="; Neighbor = ";
-            printMsg+=it.Neighbour;
+
+        System.out.println("##Sent. Source Node = " + LocalID + "Sequence Number = " + SentSeqNumber);
+        for (RoutingInfo it : RoutingTable.values()) {
+            var printMsg = new String();
+            printMsg += "DestNode = ";
+            printMsg += it.DestNode;
+            printMsg += "; Distance = ";
+            printMsg += it.Distance;
+            printMsg += "; Neighbor = ";
+            printMsg += it.Neighbour;
             System.out.println(printMsg);
-        }             
+        }
     }
 
     /**
@@ -344,6 +336,6 @@ public class RouterInstance {
      */
     private void InitializeNode() {
         LoadConfig(configPath);
-
+        // TODO: impl
     }
 }
