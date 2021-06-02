@@ -81,16 +81,19 @@ public class RouterInstance {
                                 destInfo.Neighbour = exchangeNow.SrcNode;
                                 destInfo.Distance = exchangeNow.Distance+ RoutingTable.get(exchangeNow.SrcNode).Distance;
                             }
+                            
                             if(RoutingNeighbor.get(exchangeNow.DestNode)!=null){
                                 if(destInfo.Distance>RoutingNeighbor.get(exchangeNow.DestNode).Distance){
                                     destInfo.Distance=RoutingNeighbor.get(exchangeNow.DestNode).Distance;
                                     destInfo.Neighbour=exchangeNow.DestNode;
                                 }
+                                if(NeighbourAlive.get(exchangeNow.DestNode)==null||!NeighbourAlive.get(exchangeNow.DestNode)){
+                                                                destInfo.Distance=Config.Unreachable;
+                                                                destInfo.Neighbour=exchangeNow.DestNode;
+                                                            }
                             }
-                            if(NeighbourAlive.get(exchangeNow.DestNode)==null||!NeighbourAlive.get(exchangeNow.DestNode)){
-                                destInfo.Distance=Config.Unreachable;
-                                destInfo.Neighbour=exchangeNow.DestNode;
-                            }
+                            
+                            
                         }
                         RoutingTable.put(LocalID, new RoutingInfo(LocalID, 0, LocalID));
                         
