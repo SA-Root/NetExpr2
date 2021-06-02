@@ -335,6 +335,9 @@ public class RouterInstance {
      * First flooding
      */
     private void InitializeNode() {
+        RoutingTable.clear();
+        NeighbourAlive.clear();
+        NeighbourMap.clear();
         LoadConfig(configPath);
         // TODO: impl
     }
