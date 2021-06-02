@@ -80,42 +80,45 @@ public class RouterInstance {
                                 destInfo.Distance = exchangeNow.Distance;
                             }
                         }
-
+                        
+                        sendMsgOnce();
                     }
-                    var exchanges = new ArrayList<RouterExchange>();
-                    for (RoutingInfo it : RoutingTable.values()) {
-                        exchanges.add(new RouterExchange(LocalID, it.DestNode, it.Distance));
-                    }
-                    byte[] sendMsg = RouterExchange.Serialize(exchanges).getBytes();
-
-                    for (String itNow : NeighbourMap.keySet()) {
-                        Integer it = NeighbourMap.get(itNow);
-                        if (!NeighbourAlive.get(itNow)) {
-                            continue;
-                        }
-                        DatagramPacket outPack = null;
-                        try {
-                            outPack = new DatagramPacket(sendMsg, sendMsg.length, InetAddress.getLocalHost(), it);
-                        } catch (Exception e) {
-
-                        }
-
-                        try {
-
-                            UDPSocket.send(outPack);
-                            SentSeqNumber++;
-                        } catch (Exception e) {
-                            System.out.println("[ERROR]Could not send RoutingTable.");
-                        }
-
-                    }
-                    PrintRoutingInfo();
+                   
                 }
             }
         }
         QueueExchangeReceived.clear();
     }
+    public void sendMsgOnce(){
+        var exchanges = new ArrayList<RouterExchange>();
+        for (RoutingInfo it : RoutingTable.values()) {
+            exchanges.add(new RouterExchange(LocalID, it.DestNode, it.Distance));
+        }
+        byte[] sendMsg = RouterExchange.Serialize(exchanges).getBytes();
 
+        for (String itNow : NeighbourMap.keySet()) {
+            Integer it = NeighbourMap.get(itNow);
+            if (!NeighbourAlive.get(itNow)) {
+                continue;
+            }
+            DatagramPacket outPack = null;
+            try {
+                outPack = new DatagramPacket(sendMsg, sendMsg.length, InetAddress.getLocalHost(), it);
+            } catch (Exception e) {
+
+            }
+
+            try {
+
+                UDPSocket.send(outPack);
+                SentSeqNumber++;
+            } catch (Exception e) {
+                System.out.println("[ERROR]Could not send RoutingTable.");
+            }
+
+        }
+        PrintRoutingInfo();
+    }
     public RouterInstance(String id, int udpport, String ifpath) {
         RoutingTable = new HashMap<String, RoutingInfo>();
         NeighbourMap = new HashMap<String, Integer>();
@@ -219,6 +222,7 @@ public class RouterInstance {
         TUDPListener.start();
         InitializeNode();
         System.out.println("[INFO]Router is running.");
+        sendMsgOnce();
         while (true) {
             var command = ' ';
             try {
